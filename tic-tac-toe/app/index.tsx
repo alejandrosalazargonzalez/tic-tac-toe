@@ -9,14 +9,14 @@ import {
 } from 'react-native';
 import { styles } from '../styles/styles';
 
-/** 
+/**
  * Tipos
- */
+ */ 
 type NullableSquare = string | null;
 type WinnerResult = { winner: NullableSquare; line: number[] | null };
 
 /**
- * Componente Square
+ *  Componente Square
  */
 function Square({
   value,
@@ -76,6 +76,9 @@ function Board({
   return <View style={styles.board}>{rows}</View>;
 }
 
+/**
+ *  Componente Controls
+ */
 function Controls({
   boardSize,
   setBoardSize,
@@ -85,6 +88,7 @@ function Controls({
   oWins,
   onResetStats,
   disableSizeChange,
+  disableRestart,
 }: {
   boardSize: number;
   setBoardSize: (s: number) => void;
@@ -94,6 +98,7 @@ function Controls({
   oWins: number;
   onResetStats: () => void;
   disableSizeChange: boolean;
+  disableRestart: boolean;
 }) {
   function inc() {
     setBoardSize(Math.min(7, boardSize + 1));
@@ -128,7 +133,11 @@ function Controls({
       </View>
 
       <View style={styles.buttonsRow}>
-        <TouchableOpacity onPress={onRestartGame} style={styles.primaryBtn}>
+        <TouchableOpacity
+          onPress={onRestartGame}
+          style={[styles.primaryBtn, disableRestart && { opacity: 0.4 }]}
+          disabled={disableRestart}
+        >
           <Text style={styles.primaryBtnText}>Reiniciar partida</Text>
         </TouchableOpacity>
 
@@ -152,18 +161,17 @@ function Controls({
 }
 
 /**
- * Lógica del juego
+ * Lógica del juego 
  */
 function createEmptySquares(size: number): NullableSquare[] {
   return Array(size * size).fill(null);
 }
 
 /**
- * detecta 3 o 4 en línea según tamaño del tablero
+ * Detecta 3 o 4 en línea según tamaño del tablero
  */
 function calculateWinnerGeneric(squares: NullableSquare[], size: number): WinnerResult {
   const needed = size >= 5 ? 4 : 3;
-
   const lines: number[][] = [];
 
   for (let r = 0; r < size; r++) {
@@ -211,11 +219,13 @@ export default function App() {
   const [currentMove, setCurrentMove] = useState(0);
   const [xWins, setXWins] = useState(0);
   const [oWins, setOWins] = useState(0);
+  const [gameStarted, setGameStarted] = useState(false);
 
   const setBoardSize = (newSize: number) => {
     setBoardSizeRaw(newSize);
     setHistory([createEmptySquares(newSize)]);
     setCurrentMove(0);
+    setGameStarted(false);
   };
 
   const currentSquares = history[currentMove];
@@ -228,17 +238,22 @@ export default function App() {
   const scoredMove = useRef<number | null>(null);
 
   useEffect(() => {
+    if (result.winner || currentSquares.every((s) => s !== null)) {
+      setGameStarted(false);
+    }
+
     if (result.winner && scoredMove.current !== currentMove) {
       if (result.winner === 'X') setXWins((x) => x + 1);
       else setOWins((o) => o + 1);
       scoredMove.current = currentMove;
     }
-  }, [result, currentMove]);
+  }, [result, currentSquares, currentMove]);
 
   const handleSquarePress = (i: number) => {
     if (result.winner || currentSquares[i]) return;
     const next = currentSquares.slice();
     next[i] = xIsNext ? 'X' : 'O';
+    if (!gameStarted) setGameStarted(true);
     const nextHistory = [...history.slice(0, currentMove + 1), next];
     setHistory(nextHistory);
     setCurrentMove(nextHistory.length - 1);
@@ -247,6 +262,7 @@ export default function App() {
   const restartGame = () => {
     setHistory([createEmptySquares(boardSize)]);
     setCurrentMove(0);
+    setGameStarted(false);
     scoredMove.current = null;
   };
 
@@ -268,8 +284,8 @@ export default function App() {
   const status = result.winner
     ? `Ganador: ${result.winner}`
     : currentSquares.every((s) => s !== null)
-      ? 'Empate'
-      : `Siguiente jugador: ${xIsNext ? 'X' : 'O'}`;
+    ? 'Empate'
+    : `Siguiente jugador: ${xIsNext ? 'X' : 'O'}`;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -288,9 +304,14 @@ export default function App() {
             />
 
             <View style={styles.infoRow}>
-              <TouchableOpacity onPress={restartGame} style={styles.smallBtn}>
+              <TouchableOpacity
+                onPress={restartGame}
+                style={[styles.smallBtn, gameStarted && { opacity: 0.4 }]}
+                disabled={gameStarted}
+              >
                 <Text style={styles.smallBtnText}>Reiniciar partida</Text>
               </TouchableOpacity>
+
               <TouchableOpacity onPress={restartMidGame} style={styles.smallBtnAlt}>
                 <Text style={styles.smallBtnText}>Reiniciar mid-game</Text>
               </TouchableOpacity>
@@ -305,7 +326,8 @@ export default function App() {
             xWins={xWins}
             oWins={oWins}
             onResetStats={resetStats}
-            disableSizeChange={false}
+            disableSizeChange={gameStarted}
+            disableRestart={gameStarted}
           />
         </View>
       </ScrollView>
