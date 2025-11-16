@@ -3,7 +3,7 @@ import {
     Text,
     TouchableOpacity,
 } from 'react-native';
-import { styles } from '../styles/styles';
+import { styles } from '@/styles/styles';
 
 type NullableSquare = string | null;
 
